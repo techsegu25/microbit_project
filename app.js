@@ -247,6 +247,72 @@ function handleSketch(e) {
   preview.appendChild(img);
 }
 
+// ---------- 화면 2: AI 교사 피드백 (태스크 2) ----------
+function getApiKey() {
+  const typed = $("#api-key").value.trim();
+  if (typed) return typed;
+  if (window.APP_CONFIG && window.APP_CONFIG.GEMINI_API_KEY &&
+      window.APP_CONFIG.GEMINI_API_KEY !== "여기에_본인의_API_키를_넣으세요") {
+    return window.APP_CONFIG.GEMINI_API_KEY;
+  }
+  return "";
+}
+
+function showFeedback(message, type) {
+  const area = $("#feedback-area");
+  area.className = "feedback-area" + (type ? ` is-${type}` : "");
+  area.textContent = ""; // 안전하게 비우고 textContent로만 삽입 (XSS 방지)
+  message.split("\n").forEach((line, i) => {
+    if (i > 0) area.appendChild(document.createElement("br"));
+    area.appendChild(document.createTextNode(line));
+  });
+}
+
+const FEEDBACK_ERRORS = {
+  NO_KEY: "먼저 Gemini API 키를 입력해 주세요. (키 설정을 열어 입력)",
+  EMPTY: "AI 교사가 답을 만들지 못했어요. 잠시 후 다시 시도해 주세요.",
+  NETWORK: "인터넷 연결을 확인하고 다시 시도해 주세요.",
+};
+
+async function requestFeedback() {
+  const btn = $("#get-feedback");
+  if (state.design.steps.length === 0) {
+    showFeedback("먼저 '조건 → 동작' 단계를 하나 이상 적어 주세요.", "error");
+    return;
+  }
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    showFeedback(FEEDBACK_ERRORS.NO_KEY, "error");
+    return;
+  }
+
+  btn.disabled = true;
+  showFeedback("AI 교사가 설계를 읽고 있어요… 🤖", "loading");
+
+  try {
+    const text = await window.getTeacherFeedback({
+      apiKey,
+      model: (window.APP_CONFIG && window.APP_CONFIG.GEMINI_MODEL) || "gemini-2.0-flash",
+      problem: state.problem.selected,
+      steps: state.design.steps,
+      sensors: state.design.sensors.map(sensorLabel),
+    });
+    showFeedback(text, "ok");
+  } catch (err) {
+    const code = String(err.message || "");
+    let msg = FEEDBACK_ERRORS[code];
+    if (!msg && code.startsWith("API_ERROR:")) {
+      const status = code.split(":")[1];
+      msg = status === "400" || status === "403"
+        ? "API 키가 올바른지 확인해 주세요."
+        : `AI 교사 호출에 실패했어요. (오류 ${status})`;
+    }
+    showFeedback(msg || "알 수 없는 오류가 발생했어요. 다시 시도해 주세요.", "error");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 // ---------- 화면 3: 요약 ----------
 function sensorLabel(code) {
   const found = DEFAULT_SENSORS.find((s) => s.code === code);
@@ -329,6 +395,7 @@ function init() {
     if (e.key === "Enter") { e.preventDefault(); addSensor(); }
   });
   $("#sketch").addEventListener("change", handleSketch);
+  $("#get-feedback").addEventListener("click", requestFeedback);
 
   // 이동
   $("#next-btn").addEventListener("click", handleNext);

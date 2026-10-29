@@ -92,6 +92,18 @@
         <div id="sketch-preview" class="sketch-preview"></div>
       </fieldset>
 
+      <fieldset class="card ai-card">
+        <legend>🤖 AI 교사에게 피드백 받기</legend>
+        <p class="hint">내가 설계한 내용을 AI 교사가 보고 칭찬과 힌트를 줘요. 정답을 대신 알려주지는 않아요.</p>
+        <details class="api-key-box">
+          <summary>Gemini API 키 설정</summary>
+          <label for="api-key">API 키 (이 브라우저에만 잠깐 저장되고, 저장·공유되지 않아요)</label>
+          <input type="password" id="api-key" placeholder="본인 또는 선생님의 Gemini API 키" autocomplete="off" />
+        </details>
+        <button type="button" id="get-feedback" class="btn btn-secondary">AI 교사 피드백 받기</button>
+        <div id="feedback-area" class="feedback-area" aria-live="polite"></div>
+      </fieldset>
+
       <p class="form-error" id="error-2" role="alert" hidden></p>
     </section>
 
@@ -118,6 +130,10 @@
     <button type="button" id="next-btn" class="btn btn-primary">다음 →</button>
   </footer>
 
+  <!-- API 키는 화면의 'Gemini API 키 설정'에서 입력합니다.
+       파일로 미리 넣고 싶으면 config.example.js 참고 후 이 줄의 주석을 풀어 config.js 를 추가하세요. -->
+  <!-- <script src="config.js"></script> -->
+  <script src="gemini.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

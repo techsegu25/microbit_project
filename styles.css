@@ -282,6 +282,25 @@ textarea { resize: vertical; }
 
 .selected-problem { background: var(--primary-light); padding: 10px 14px; border-radius: 8px; }
 
+/* AI 교사 피드백 (태스크 2) */
+.ai-card { border-color: #b9d8f2; background: #f5fbff; }
+.api-key-box { margin: 8px 0; }
+.api-key-box summary { cursor: pointer; color: var(--muted); font-size: 0.92rem; }
+.api-key-box input { margin-top: 6px; }
+.feedback-area {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--border);
+  min-height: 0;
+  white-space: normal;
+}
+.feedback-area:empty { display: none; }
+.feedback-area.is-loading { color: var(--muted); font-style: italic; }
+.feedback-area.is-error { color: var(--danger); border-color: #e8bdb6; background: #fdf3f1; }
+.feedback-area.is-ok { border-left: 4px solid var(--primary); }
+
 /* 반응형: 좁은 화면 */
 @media (max-width: 640px) {
   body { font-size: 16px; }

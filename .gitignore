@@ -1,0 +1,8 @@
+# API 키 등 비밀 설정 (커밋 금지)
+config.js
+
+# OS / 에디터
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/
