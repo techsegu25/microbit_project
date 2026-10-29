@@ -1,0 +1,345 @@
+// =====================================================================
+// 무순 관리 에이전트 설계 — 태스크 1: 전체 UI (프런트엔드 전용)
+// Gemini(태스크 2), Firebase(태스크 3) 연동은 아직 포함하지 않습니다.
+// 상태는 메모리(state)에만 보관하며, 화면 간 이동 시 유지됩니다.
+// =====================================================================
+
+/** 앱 상태 (spec.md 12장 구조에 맞춤) */
+const state = {
+  currentStep: 1,
+  problem: {
+    padletUrl: "",
+    growthDiary: "",
+    candidates: [], // 발견한 문제 목록
+    selected: "",   // 해결할 문제
+  },
+  design: {
+    steps: [],       // { order, condition, action }
+    sensors: [],     // 선택한 기본 센서/출력 코드
+    extraSensors: [], // 추가한 센서 이름
+    imageName: "",   // 미리보기용 파일 이름 (업로드는 태스크 3)
+  },
+};
+
+/** 기본 센서/출력 목록 (학생이 배운 범위) */
+const DEFAULT_SENSORS = [
+  { code: "temperature", label: "온도" },
+  { code: "accelerometer", label: "가속도" },
+  { code: "sound", label: "소리" },
+  { code: "light", label: "조도" },
+  { code: "soilMoisture", label: "토양습도" },
+  { code: "led", label: "LED" },
+  { code: "speaker", label: "스피커" },
+];
+
+const TOTAL_STEPS = 3;
+
+// ---------- 공통 유틸 ----------
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+function showError(step, message) {
+  const el = $(`#error-${step}`);
+  if (!el) return;
+  el.textContent = message;
+  el.hidden = false;
+}
+function clearError(step) {
+  const el = $(`#error-${step}`);
+  if (!el) return;
+  el.hidden = true;
+  el.textContent = "";
+}
+
+// ---------- 단계 이동 ----------
+function goToStep(step) {
+  if (step < 1 || step > TOTAL_STEPS) return;
+  state.currentStep = step;
+
+  // 뷰 전환
+  $$(".view").forEach((v) => {
+    const active = v.id === `view-${step}`;
+    v.classList.toggle("is-active", active);
+    v.hidden = !active;
+  });
+
+  // 진행 표시 갱신
+  $$(".steps .step").forEach((li) => {
+    li.classList.toggle("is-active", Number(li.dataset.step) === step);
+  });
+
+  // 이동 버튼 상태
+  $("#prev-btn").hidden = step === 1;
+  $("#next-btn").textContent = step === TOTAL_STEPS ? "저장 / 완료" : "다음 →";
+
+  // 단계 진입 시 준비 작업
+  if (step === 2) renderSelectedProblem();
+  if (step === 3) renderSummary();
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// ---------- 화면 1: 문제 작성 ----------
+function renderProblems() {
+  const list = $("#problem-list");
+  list.innerHTML = "";
+  state.problem.candidates.forEach((text, i) => {
+    const li = document.createElement("li");
+    const span = document.createElement("span");
+    span.textContent = text;
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "btn-danger-link";
+    del.textContent = "삭제";
+    del.setAttribute("aria-label", `문제 삭제: ${text}`);
+    del.addEventListener("click", () => {
+      state.problem.candidates.splice(i, 1);
+      if (state.problem.selected === text) state.problem.selected = "";
+      renderProblems();
+      renderChoices();
+    });
+    li.append(span, del);
+    list.appendChild(li);
+  });
+  $("#problem-empty").hidden = state.problem.candidates.length > 0;
+}
+
+function renderChoices() {
+  const wrap = $("#problem-choices");
+  const card = $("#select-card");
+  wrap.innerHTML = "";
+  card.hidden = state.problem.candidates.length === 0;
+
+  state.problem.candidates.forEach((text, i) => {
+    const id = `choice-${i}`;
+    const label = document.createElement("label");
+    label.className = "choice";
+    label.htmlFor = id;
+
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "selected-problem";
+    radio.id = id;
+    radio.value = text;
+    radio.checked = state.problem.selected === text;
+    radio.addEventListener("change", () => {
+      state.problem.selected = text;
+      clearError(1);
+    });
+
+    const span = document.createElement("span");
+    span.textContent = text;
+    label.append(radio, span);
+    wrap.appendChild(label);
+  });
+}
+
+function addProblem() {
+  const input = $("#problem-input");
+  const text = input.value.trim();
+  if (!text) return;
+  state.problem.candidates.push(text);
+  input.value = "";
+  input.focus();
+  renderProblems();
+  renderChoices();
+  clearError(1);
+}
+
+// ---------- 화면 2: 자연어 설계 ----------
+function renderSelectedProblem() {
+  $("#selected-problem-text").textContent = state.problem.selected || "—";
+}
+
+function renderSteps() {
+  const wrap = $("#step-list");
+  wrap.innerHTML = "";
+  state.design.steps.forEach((s, i) => {
+    const row = document.createElement("div");
+    row.className = "step-item";
+    row.innerHTML = `
+      <span class="order">${i + 1}</span>
+      <span class="text"><span class="cond">${escapeHtml(s.condition)}</span>
+        → ${escapeHtml(s.action)}</span>`;
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "btn-danger-link";
+    del.textContent = "삭제";
+    del.setAttribute("aria-label", `단계 삭제: ${s.condition} → ${s.action}`);
+    del.addEventListener("click", () => {
+      state.design.steps.splice(i, 1);
+      renderSteps();
+    });
+    row.appendChild(del);
+    wrap.appendChild(row);
+  });
+}
+
+function addStep() {
+  const cond = $("#cond-input").value.trim();
+  const act = $("#act-input").value.trim();
+  if (!cond || !act) {
+    showError(2, "조건과 동작을 모두 적어 주세요.");
+    return;
+  }
+  state.design.steps.push({
+    order: state.design.steps.length + 1,
+    condition: cond,
+    action: act,
+  });
+  $("#cond-input").value = "";
+  $("#act-input").value = "";
+  $("#cond-input").focus();
+  renderSteps();
+  clearError(2);
+}
+
+function renderSensors() {
+  const wrap = $("#sensor-list");
+  wrap.innerHTML = "";
+  const all = [
+    ...DEFAULT_SENSORS,
+    ...state.design.extraSensors.map((label) => ({ code: label, label, extra: true })),
+  ];
+  all.forEach(({ code, label }) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip";
+    chip.textContent = label;
+    const selected = state.design.sensors.includes(code);
+    chip.setAttribute("aria-pressed", String(selected));
+    chip.addEventListener("click", () => {
+      const idx = state.design.sensors.indexOf(code);
+      if (idx >= 0) state.design.sensors.splice(idx, 1);
+      else state.design.sensors.push(code);
+      chip.setAttribute("aria-pressed", String(idx < 0));
+    });
+    wrap.appendChild(chip);
+  });
+}
+
+function addSensor() {
+  const input = $("#extra-sensor-input");
+  const name = input.value.trim();
+  if (!name) return;
+  if (!state.design.extraSensors.includes(name)) {
+    state.design.extraSensors.push(name);
+    state.design.sensors.push(name); // 추가하면 바로 선택 상태로
+  }
+  input.value = "";
+  input.focus();
+  renderSensors();
+}
+
+function handleSketch(e) {
+  const file = e.target.files && e.target.files[0];
+  const preview = $("#sketch-preview");
+  preview.innerHTML = "";
+  if (!file) {
+    state.design.imageName = "";
+    return;
+  }
+  state.design.imageName = file.name;
+  const img = document.createElement("img");
+  img.alt = `업로드한 설계 그림: ${file.name}`;
+  img.src = URL.createObjectURL(file);
+  img.addEventListener("load", () => URL.revokeObjectURL(img.src));
+  preview.appendChild(img);
+}
+
+// ---------- 화면 3: 요약 ----------
+function sensorLabel(code) {
+  const found = DEFAULT_SENSORS.find((s) => s.code === code);
+  return found ? found.label : code; // 추가 센서는 이름 그대로
+}
+
+function renderSummary() {
+  const wrap = $("#summary-content");
+  const d = state.design;
+  const stepsHtml = d.steps.length
+    ? `<ul>${d.steps
+        .map((s) => `<li>${escapeHtml(s.condition)} → ${escapeHtml(s.action)}</li>`)
+        .join("")}</ul>`
+    : "<p class='hint'>아직 설계 단계가 없어요.</p>";
+  const sensorsHtml = d.sensors.length
+    ? d.sensors.map(sensorLabel).map(escapeHtml).join(", ")
+    : "없음";
+
+  wrap.innerHTML = `
+    <div class="summary-item">
+      <span class="k">문제</span>
+      <div>${escapeHtml(state.problem.selected || "선택 안 됨")}</div>
+    </div>
+    <div class="summary-item">
+      <span class="k">조건 → 동작</span>
+      ${stepsHtml}
+    </div>
+    <div class="summary-item">
+      <span class="k">센서 / 부품</span>
+      <div>${sensorsHtml}</div>
+    </div>`;
+}
+
+// ---------- 유효성 검사 후 다음 단계 ----------
+function handleNext() {
+  const step = state.currentStep;
+  if (step === 1) {
+    if (!state.problem.selected) {
+      showError(1, "해결할 문제를 하나 골라 주세요.");
+      return;
+    }
+  }
+  if (step === 2) {
+    if (state.design.steps.length === 0) {
+      showError(2, "조건 → 동작 단계를 하나 이상 적어 주세요.");
+      return;
+    }
+  }
+  if (step === TOTAL_STEPS) {
+    alert("설계가 저장되었습니다! (저장 기능은 태스크 3에서 Firebase로 연결됩니다.)");
+    return;
+  }
+  goToStep(step + 1);
+}
+
+// ---------- HTML 이스케이프 (XSS 방지) ----------
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// ---------- 초기화 ----------
+function init() {
+  // 화면 1
+  $("#add-problem").addEventListener("click", addProblem);
+  $("#problem-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); addProblem(); }
+  });
+  $("#padlet-url").addEventListener("input", (e) => (state.problem.padletUrl = e.target.value));
+  $("#growth-diary").addEventListener("input", (e) => (state.problem.growthDiary = e.target.value));
+
+  // 화면 2
+  $("#add-step").addEventListener("click", addStep);
+  $("#add-sensor").addEventListener("click", addSensor);
+  $("#extra-sensor-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); addSensor(); }
+  });
+  $("#sketch").addEventListener("change", handleSketch);
+
+  // 이동
+  $("#next-btn").addEventListener("click", handleNext);
+  $("#prev-btn").addEventListener("click", () => goToStep(state.currentStep - 1));
+
+  // 첫 렌더
+  renderProblems();
+  renderChoices();
+  renderSteps();
+  renderSensors();
+  goToStep(1);
+}
+
+document.addEventListener("DOMContentLoaded", init);

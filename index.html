@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>무순 관리 에이전트 설계</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- 헤더 -->
+  <header class="app-header">
+    <h1>🌱 무순 관리 에이전트 설계</h1>
+  </header>
+
+  <!-- 진행 단계 표시 -->
+  <nav class="steps" aria-label="진행 단계">
+    <ol>
+      <li data-step="1" class="step is-active">
+        <span class="step-num">1</span><span class="step-label">문제 작성</span>
+      </li>
+      <li data-step="2" class="step">
+        <span class="step-num">2</span><span class="step-label">자연어 설계</span>
+      </li>
+      <li data-step="3" class="step">
+        <span class="step-num">3</span><span class="step-label">개발</span>
+      </li>
+    </ol>
+  </nav>
+
+  <main class="content">
+    <!-- ===== 화면 1 : 문제 작성 ===== -->
+    <section id="view-1" class="view is-active" aria-labelledby="view-1-title">
+      <h2 id="view-1-title">무순을 기르면서 어떤 문제가 있었나요?</h2>
+
+      <fieldset class="card">
+        <legend>내 성장일기 가져오기</legend>
+        <label for="padlet-url">패들렛 링크 붙여넣기 (선택)</label>
+        <input type="url" id="padlet-url" placeholder="https://padlet.com/..." />
+
+        <label for="growth-diary">또는 성장일기 내용 붙여넣기 (선택)</label>
+        <textarea id="growth-diary" rows="3" placeholder="예: 주말 동안 물을 못 줬더니 무순이 축 처졌다."></textarea>
+      </fieldset>
+
+      <fieldset class="card">
+        <legend>내가 발견한 문제</legend>
+        <div class="row">
+          <input type="text" id="problem-input" placeholder="예: 주말에 물 주는 걸 깜빡했어요" />
+          <button type="button" id="add-problem" class="btn btn-secondary">+ 문제 추가</button>
+        </div>
+        <ul id="problem-list" class="problem-list" aria-live="polite"></ul>
+        <p id="problem-empty" class="hint">아직 추가한 문제가 없어요.</p>
+      </fieldset>
+
+      <fieldset class="card" id="select-card" hidden>
+        <legend>해결할 문제 고르기</legend>
+        <div id="problem-choices" class="choices" role="radiogroup" aria-label="해결할 문제 선택"></div>
+      </fieldset>
+
+      <p class="form-error" id="error-1" role="alert" hidden></p>
+    </section>
+
+    <!-- ===== 화면 2 : 자연어 설계 ===== -->
+    <section id="view-2" class="view" aria-labelledby="view-2-title" hidden>
+      <h2 id="view-2-title">문제를 어떻게 해결할지 설계해요</h2>
+      <p class="selected-problem">선택한 문제: <strong id="selected-problem-text">—</strong></p>
+
+      <fieldset class="card">
+        <legend>말로 설명하기 (조건 → 동작)</legend>
+        <p class="hint">순서도를 못 그려도 괜찮아요. "언제(조건) → 무엇을 한다(동작)"로 적어보세요.</p>
+        <div id="step-list" class="step-list"></div>
+        <div class="row row-steps">
+          <input type="text" id="cond-input" placeholder="조건 (예: 흙이 마르면)" />
+          <input type="text" id="act-input" placeholder="동작 (예: LED를 켜고 소리를 낸다)" />
+          <button type="button" id="add-step" class="btn btn-secondary">+ 단계 추가</button>
+        </div>
+      </fieldset>
+
+      <fieldset class="card">
+        <legend>사용할 센서 / 부품</legend>
+        <p class="hint">배운 센서를 고르고, 필요하면 새 센서를 추가할 수 있어요.</p>
+        <div id="sensor-list" class="chips" role="group" aria-label="센서 및 부품 선택"></div>
+        <div class="row">
+          <input type="text" id="extra-sensor-input" placeholder="새 센서 이름 (예: 수분 펌프)" />
+          <button type="button" id="add-sensor" class="btn btn-secondary">+ 새 센서 추가</button>
+        </div>
+      </fieldset>
+
+      <fieldset class="card">
+        <legend>그림으로도 표현하기 (선택)</legend>
+        <label for="sketch" class="btn btn-secondary">🖼 이미지 선택</label>
+        <input type="file" id="sketch" accept="image/*" class="visually-hidden" />
+        <div id="sketch-preview" class="sketch-preview"></div>
+      </fieldset>
+
+      <p class="form-error" id="error-2" role="alert" hidden></p>
+    </section>
+
+    <!-- ===== 화면 3 : 메이크코드 연동 개발 ===== -->
+    <section id="view-3" class="view" aria-labelledby="view-3-title" hidden>
+      <h2 id="view-3-title">설계한 내용을 보며 직접 개발해요</h2>
+      <div class="dev-layout">
+        <aside class="design-summary card" aria-label="내 설계 요약">
+          <h3>내 설계 요약</h3>
+          <div id="summary-content"></div>
+        </aside>
+        <div class="makecode-panel card">
+          <h3>메이크코드</h3>
+          <p class="hint">아래 버튼을 눌러 메이크코드에서 설계한 내용을 직접 블록으로 만들어 보세요.</p>
+          <a id="open-makecode" class="btn btn-primary" href="https://makecode.microbit.org/" target="_blank" rel="noopener noreferrer">메이크코드 열기 ↗</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 이동 버튼 -->
+  <footer class="app-footer">
+    <button type="button" id="prev-btn" class="btn btn-ghost" hidden>← 이전</button>
+    <button type="button" id="next-btn" class="btn btn-primary">다음 →</button>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
