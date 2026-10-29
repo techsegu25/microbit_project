@@ -22,7 +22,7 @@ const GEMINI_SYSTEM_PROMPT = `너는 중학교 1학년 학생을 돕는 친절�
  */
 async function getTeacherFeedback({ apiKey, model, problem, steps, sensors }) {
   if (!apiKey) throw new Error("NO_KEY");
-  const useModel = model || "gemini-2.0-flash";
+  const useModel = model || "gemini-3.8-flash";
   const endpoint =
     `https://generativelanguage.googleapis.com/v1beta/models/${useModel}:generateContent?key=${encodeURIComponent(apiKey)}`;
 

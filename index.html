@@ -121,6 +121,14 @@
           <a id="open-makecode" class="btn btn-primary" href="https://makecode.microbit.org/" target="_blank" rel="noopener noreferrer">메이크코드 열기 ↗</a>
         </div>
       </div>
+
+      <fieldset class="card save-card">
+        <legend>💾 내 설계 저장하기</legend>
+        <label for="nickname">이름 / 닉네임 (선택)</label>
+        <input type="text" id="nickname" placeholder="예: 무순이1" autocomplete="off" />
+        <p class="hint">"저장 / 완료" 버튼을 누르면 내 설계가 저장돼요.</p>
+        <div id="save-status" class="feedback-area" aria-live="polite"></div>
+      </fieldset>
     </section>
   </main>
 
@@ -130,9 +138,14 @@
     <button type="button" id="next-btn" class="btn btn-primary">다음 →</button>
   </footer>
 
-  <!-- API 키는 화면의 'Gemini API 키 설정'에서 입력합니다.
-       파일로 미리 넣고 싶으면 config.example.js 참고 후 이 줄의 주석을 풀어 config.js 를 추가하세요. -->
-  <!-- <script src="config.js"></script> -->
+  <!-- Firebase SDK (compat 빌드, CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="firebase-db.js"></script>
+
+  <!-- config.js: Gemini API 키 (gitignore 로 커밋되지 않음). 없으면 화면에서 키 입력. -->
+  <script src="config.js"></script>
   <script src="gemini.js"></script>
   <script src="app.js"></script>
 </body>

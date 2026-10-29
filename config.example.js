@@ -10,5 +10,5 @@
 
 window.APP_CONFIG = {
   GEMINI_API_KEY: "여기에_본인의_API_키를_넣으세요",
-  GEMINI_MODEL: "gemini-2.0-flash",
+  GEMINI_MODEL: "gemini-3.8-flash",
 };

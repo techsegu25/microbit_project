@@ -301,6 +301,9 @@ textarea { resize: vertical; }
 .feedback-area.is-error { color: var(--danger); border-color: #e8bdb6; background: #fdf3f1; }
 .feedback-area.is-ok { border-left: 4px solid var(--primary); }
 
+/* 저장 카드 (태스크 3) */
+.save-card { margin-top: 16px; }
+
 /* 반응형: 좁은 화면 */
 @media (max-width: 640px) {
   body { font-size: 16px; }

@@ -29,6 +29,36 @@
 
 <!-- 새 항목을 이 아래에 추가하세요 -->
 
+### [2026-10-29] 태스크3 - Gemini 모델명 지원 종료로 404 (gemini-2.0-flash / 2.5-flash)
+
+- **단계/위치**: 태스크3 통합 테스트, `config.js`/`gemini.js`의 모델명
+- **증상**: 실제 키로 호출 시 404. 본문: "models/gemini-2.0-flash is no longer available ... use models/gemini-3.8-flash". gemini-2.5-flash도 "no longer available to new users".
+- **원인**: 코드 작성 시점의 모델명이 이미 구버전이었음. 모델은 수시로 지원 종료됨.
+- **해결**: 사용 가능 모델 목록(`/v1beta/models`)을 조회해 `gemini-3.8-flash`로 변경. 503(과부하) 재시도 안내 문구 추가.
+- **재발 방지**: 모델명을 하드코딩만 하지 말고 (1) 지원 종료 대비해 `config.js`에서 쉽게 바꿀 수 있게 두고 (2) 404(모델 없음) 에러를 사용자 안내로 매핑하고 (3) 필요 시 `/models` 목록으로 유효 모델을 확인할 것. 안정 별칭 `gemini-flash-latest`도 대안.
+- **관련 파일/커밋**: `config.js`, `config.example.js`, `gemini.js`, `app.js`
+
+### [2026-10-29] 태스크3 - Firestore 저장 시 permission-denied (보안 규칙)
+
+- **단계/위치**: 태스크3, `firebase-db.js`의 `db.collection("projects").add(...)`
+- **증상**: 저장 시 `permission-denied` ("Missing or insufficient permissions").
+- **원인**: Firestore 보안 규칙이 기본 잠금 상태라 클라이언트 쓰기가 거부됨. (코드 문제 아님 — DB 연결·SDK는 정상)
+- **해결**: Firebase 콘솔 > Firestore Database > 규칙에서 쓰기를 허용해야 함. 수업용 예시 규칙:
+  ```
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      match /projects/{doc} {
+        allow create: if true;      // 누구나 새 설계 저장 허용
+        allow read, update, delete: if false;
+      }
+    }
+  }
+  ```
+  (코드로는 permission-denied를 "저장 권한이 없어요…" 안내로 매핑해 두었음.)
+- **재발 방지**: Firebase 연동 시 **보안 규칙 설정이 코드 못지않게 중요**함을 기억. 배포 전 규칙을 명시적으로 점검하고, permission-denied를 사용자 친화 메시지로 처리할 것.
+- **관련 파일/커밋**: `firebase-db.js`, `app.js`
+
 ### [2026-10-29] 태스크2 - 선택 파일 `config.js` 자동 로드로 404 콘솔 에러 발생
 
 - **단계/위치**: 태스크2, `index.html`의 `<script src="config.js">`

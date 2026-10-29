@@ -258,14 +258,17 @@ function getApiKey() {
   return "";
 }
 
-function showFeedback(message, type) {
-  const area = $("#feedback-area");
-  area.className = "feedback-area" + (type ? ` is-${type}` : "");
-  area.textContent = ""; // 안전하게 비우고 textContent로만 삽입 (XSS 방지)
+// 메시지를 안전하게(textContent) 렌더링 (XSS 방지)
+function renderMessage(el, message, type) {
+  el.className = "feedback-area" + (type ? ` is-${type}` : "");
+  el.textContent = "";
   message.split("\n").forEach((line, i) => {
-    if (i > 0) area.appendChild(document.createElement("br"));
-    area.appendChild(document.createTextNode(line));
+    if (i > 0) el.appendChild(document.createElement("br"));
+    el.appendChild(document.createTextNode(line));
   });
+}
+function showFeedback(message, type) {
+  renderMessage($("#feedback-area"), message, type);
 }
 
 const FEEDBACK_ERRORS = {
@@ -292,7 +295,7 @@ async function requestFeedback() {
   try {
     const text = await window.getTeacherFeedback({
       apiKey,
-      model: (window.APP_CONFIG && window.APP_CONFIG.GEMINI_MODEL) || "gemini-2.0-flash",
+      model: (window.APP_CONFIG && window.APP_CONFIG.GEMINI_MODEL) || "gemini-3.8-flash",
       problem: state.problem.selected,
       steps: state.design.steps,
       sensors: state.design.sensors.map(sensorLabel),
@@ -303,9 +306,15 @@ async function requestFeedback() {
     let msg = FEEDBACK_ERRORS[code];
     if (!msg && code.startsWith("API_ERROR:")) {
       const status = code.split(":")[1];
-      msg = status === "400" || status === "403"
-        ? "API 키가 올바른지 확인해 주세요."
-        : `AI 교사 호출에 실패했어요. (오류 ${status})`;
+      if (status === "400" || status === "403") {
+        msg = "API 키가 올바른지 확인해 주세요.";
+      } else if (status === "404") {
+        msg = "AI 모델을 찾을 수 없어요. 모델 이름(config)을 확인해 주세요.";
+      } else if (status === "429" || status === "503") {
+        msg = "지금 사용량이 많아요. 잠시 후 다시 시도해 주세요.";
+      } else {
+        msg = `AI 교사 호출에 실패했어요. (오류 ${status})`;
+      }
     }
     showFeedback(msg || "알 수 없는 오류가 발생했어요. 다시 시도해 주세요.", "error");
   } finally {
@@ -346,8 +355,42 @@ function renderSummary() {
     </div>`;
 }
 
+// ---------- 화면 3: Firebase 저장 (태스크 3) ----------
+async function saveToFirebase() {
+  const area = $("#save-status");
+  const btn = $("#next-btn");
+
+  if (typeof window.saveProject !== "function") {
+    renderMessage(area, "저장 기능을 불러오지 못했어요. (Firebase 설정/네트워크 확인)", "error");
+    return;
+  }
+
+  state.owner = $("#nickname").value.trim() || "익명";
+  btn.disabled = true;
+  renderMessage(area, "저장하고 있어요… 💾", "loading");
+
+  try {
+    const id = await window.saveProject(state);
+    renderMessage(area, `저장되었습니다! 저장 번호: ${id}`, "ok");
+  } catch (err) {
+    const code = (err && err.code) || "";
+    let msg;
+    if (code === "permission-denied") {
+      msg = "저장 권한이 없어요. 선생님께 Firestore 보안 규칙 확인을 요청하세요.";
+    } else if (code === "unavailable") {
+      msg = "인터넷 연결을 확인하고 다시 시도해 주세요.";
+    } else {
+      msg = "저장에 실패했어요. 잠시 후 다시 시도해 주세요.";
+    }
+    renderMessage(area, msg, "error");
+    console.error("saveProject 실패:", err);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 // ---------- 유효성 검사 후 다음 단계 ----------
-function handleNext() {
+async function handleNext() {
   const step = state.currentStep;
   if (step === 1) {
     if (!state.problem.selected) {
@@ -362,7 +405,7 @@ function handleNext() {
     }
   }
   if (step === TOTAL_STEPS) {
-    alert("설계가 저장되었습니다! (저장 기능은 태스크 3에서 Firebase로 연결됩니다.)");
+    await saveToFirebase();
     return;
   }
   goToStep(step + 1);
