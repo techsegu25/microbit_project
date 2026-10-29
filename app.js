@@ -7,6 +7,8 @@
 /** 앱 상태 (spec.md 12장 구조에 맞춤) */
 const state = {
   currentStep: 1,
+  owner: "",       // 닉네임 (저장 시 설정)
+  className: "",   // 반/모둠 (선택)
   problem: {
     padletUrl: "",
     growthDiary: "",
@@ -14,12 +16,48 @@ const state = {
     selected: "",   // 해결할 문제
   },
   design: {
+    description: "", // 자연어 기능 설명 (steps와 별도)
     steps: [],       // { order, condition, action }
-    sensors: [],     // 선택한 기본 센서/출력 코드
+    sensors: [],     // 선택한 센서/출력 코드 (저장 시 sensors/outputs로 분리)
     extraSensors: [], // 추가한 센서 이름
-    imageName: "",   // 미리보기용 파일 이름 (업로드는 태스크 3)
+    imageName: "",   // 미리보기용 파일 이름
+    imageFile: null, // 업로드할 실제 파일 (localStorage에는 저장 안 함)
   },
 };
+
+const STORAGE_KEY = "musun_app_state";
+
+// ---------- localStorage 저장/복원 (AC1-5) ----------
+function persist() {
+  try {
+    const { imageFile, ...designRest } = state.design;
+    const data = {
+      currentStep: state.currentStep,
+      owner: state.owner,
+      className: state.className,
+      problem: state.problem,
+      design: designRest,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    /* 비공개 모드 등에서 실패해도 앱은 정상 동작 */
+  }
+}
+
+function restore() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data.problem) state.problem = { ...state.problem, ...data.problem };
+    if (data.design) state.design = { ...state.design, ...data.design, imageFile: null };
+    if (typeof data.owner === "string") state.owner = data.owner;
+    if (typeof data.className === "string") state.className = data.className;
+    if (data.currentStep) state.currentStep = data.currentStep;
+  } catch (e) {
+    /* 손상된 데이터는 무시 */
+  }
+}
 
 /** 기본 센서/출력 목록 (학생이 배운 범위) */
 const DEFAULT_SENSORS = [
@@ -76,6 +114,7 @@ function goToStep(step) {
   if (step === 2) renderSelectedProblem();
   if (step === 3) renderSummary();
 
+  persist();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -97,6 +136,7 @@ function renderProblems() {
       if (state.problem.selected === text) state.problem.selected = "";
       renderProblems();
       renderChoices();
+      persist();
     });
     li.append(span, del);
     list.appendChild(li);
@@ -125,6 +165,7 @@ function renderChoices() {
     radio.addEventListener("change", () => {
       state.problem.selected = text;
       clearError(1);
+      persist();
     });
 
     const span = document.createElement("span");
@@ -144,6 +185,7 @@ function addProblem() {
   renderProblems();
   renderChoices();
   clearError(1);
+  persist();
 }
 
 // ---------- 화면 2: 자연어 설계 ----------
@@ -169,6 +211,7 @@ function renderSteps() {
     del.addEventListener("click", () => {
       state.design.steps.splice(i, 1);
       renderSteps();
+      persist();
     });
     row.appendChild(del);
     wrap.appendChild(row);
@@ -192,6 +235,7 @@ function addStep() {
   $("#cond-input").focus();
   renderSteps();
   clearError(2);
+  persist();
 }
 
 function renderSensors() {
@@ -213,6 +257,7 @@ function renderSensors() {
       if (idx >= 0) state.design.sensors.splice(idx, 1);
       else state.design.sensors.push(code);
       chip.setAttribute("aria-pressed", String(idx < 0));
+      persist();
     });
     wrap.appendChild(chip);
   });
@@ -229,6 +274,7 @@ function addSensor() {
   input.value = "";
   input.focus();
   renderSensors();
+  persist();
 }
 
 function handleSketch(e) {
@@ -237,9 +283,13 @@ function handleSketch(e) {
   preview.innerHTML = "";
   if (!file) {
     state.design.imageName = "";
+    state.design.imageFile = null;
+    persist();
     return;
   }
   state.design.imageName = file.name;
+  state.design.imageFile = file;
+  persist();
   const img = document.createElement("img");
   img.alt = `업로드한 설계 그림: ${file.name}`;
   img.src = URL.createObjectURL(file);
@@ -340,11 +390,16 @@ function renderSummary() {
     ? d.sensors.map(sensorLabel).map(escapeHtml).join(", ")
     : "없음";
 
+  const descHtml = d.description
+    ? `<div class="summary-item"><span class="k">기능 설명</span><div>${escapeHtml(d.description)}</div></div>`
+    : "";
+
   wrap.innerHTML = `
     <div class="summary-item">
       <span class="k">문제</span>
       <div>${escapeHtml(state.problem.selected || "선택 안 됨")}</div>
     </div>
+    ${descHtml}
     <div class="summary-item">
       <span class="k">조건 → 동작</span>
       ${stepsHtml}
@@ -366,6 +421,8 @@ async function saveToFirebase() {
   }
 
   state.owner = $("#nickname").value.trim() || "익명";
+  state.className = $("#class-name").value.trim();
+  persist();
   btn.disabled = true;
   renderMessage(area, "저장하고 있어요… 💾", "loading");
 
@@ -428,10 +485,11 @@ function init() {
   $("#problem-input").addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); addProblem(); }
   });
-  $("#padlet-url").addEventListener("input", (e) => (state.problem.padletUrl = e.target.value));
-  $("#growth-diary").addEventListener("input", (e) => (state.problem.growthDiary = e.target.value));
+  $("#padlet-url").addEventListener("input", (e) => { state.problem.padletUrl = e.target.value; persist(); });
+  $("#growth-diary").addEventListener("input", (e) => { state.problem.growthDiary = e.target.value; persist(); });
 
   // 화면 2
+  $("#design-desc").addEventListener("input", (e) => { state.design.description = e.target.value; persist(); });
   $("#add-step").addEventListener("click", addStep);
   $("#add-sensor").addEventListener("click", addSensor);
   $("#extra-sensor-input").addEventListener("keydown", (e) => {
@@ -440,16 +498,28 @@ function init() {
   $("#sketch").addEventListener("change", handleSketch);
   $("#get-feedback").addEventListener("click", requestFeedback);
 
+  // 화면 3
+  $("#nickname").addEventListener("input", (e) => { state.owner = e.target.value; persist(); });
+  $("#class-name").addEventListener("input", (e) => { state.className = e.target.value; persist(); });
+
   // 이동
   $("#next-btn").addEventListener("click", handleNext);
   $("#prev-btn").addEventListener("click", () => goToStep(state.currentStep - 1));
+
+  // 저장된 내용 복원 (AC1-5) 후 입력칸 채우기
+  restore();
+  $("#padlet-url").value = state.problem.padletUrl || "";
+  $("#growth-diary").value = state.problem.growthDiary || "";
+  $("#design-desc").value = state.design.description || "";
+  $("#nickname").value = state.owner || "";
+  $("#class-name").value = state.className || "";
 
   // 첫 렌더
   renderProblems();
   renderChoices();
   renderSteps();
   renderSensors();
-  goToStep(1);
+  goToStep(state.currentStep || 1);
 }
 
 document.addEventListener("DOMContentLoaded", init);

@@ -66,6 +66,8 @@
 
       <fieldset class="card">
         <legend>말로 설명하기 (조건 → 동작)</legend>
+        <label for="design-desc">만들고 싶은 기능을 한두 문장으로 설명해요 (선택)</label>
+        <textarea id="design-desc" rows="2" placeholder="예: 흙이 마르면 알려주는 장치를 만들고 싶어요."></textarea>
         <p class="hint">순서도를 못 그려도 괜찮아요. "언제(조건) → 무엇을 한다(동작)"로 적어보세요.</p>
         <div id="step-list" class="step-list"></div>
         <div class="row row-steps">
@@ -126,6 +128,8 @@
         <legend>💾 내 설계 저장하기</legend>
         <label for="nickname">이름 / 닉네임 (선택)</label>
         <input type="text" id="nickname" placeholder="예: 무순이1" autocomplete="off" />
+        <label for="class-name">반 / 모둠 (선택)</label>
+        <input type="text" id="class-name" placeholder="예: 1-3" autocomplete="off" />
         <p class="hint">"저장 / 완료" 버튼을 누르면 내 설계가 저장돼요.</p>
         <div id="save-status" class="feedback-area" aria-live="polite"></div>
       </fieldset>
@@ -141,6 +145,7 @@
   <!-- Firebase SDK (compat 빌드, CDN) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
   <script src="firebase-config.js"></script>
   <script src="firebase-db.js"></script>
 

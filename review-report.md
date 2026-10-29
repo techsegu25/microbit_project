@@ -29,6 +29,15 @@
 
 <!-- 새 항목을 이 아래에 추가하세요 -->
 
+### [2026-10-29] 전체 - 구현 전 PRD(수용 기준) 대조를 안 해 누락 발생
+
+- **단계/위치**: 태스크 1~3 전반, spec.md 13장(AC)·12장(데이터 구조) 대비
+- **증상**: review.md(코드 체크리스트)로만 검토하고 spec.md 수용 기준을 한 줄씩 대조하지 않아, (1) AC1-5(새로고침 유실 방지) 미구현 (2) Firestore 구조 누락: `className`, `problem.source`, `design.description`, `sensors`/`outputs` 분리, `makecode.shareId`, 이미지 Storage 업로드(`imageUrls`) (3) Gemini 기능이 PRD에 아예 없음.
+- **원인**: "코드 리뷰(review.md)"와 "PRD 수용 기준 대조"를 같은 것으로 착각. 둘은 다른 관문.
+- **해결**: localStorage 자동저장(AC1-5), Storage 업로드/필드 보완, sensors·outputs 분리 구현. spec.md에 Gemini 기능(기능 4)·AC4 추가.
+- **재발 방지**: 각 태스크 완료 시 **review.md(코드) + spec.md 13장(수용 기준)을 둘 다** 체크할 것. 새 기능을 추가하면 **먼저 PRD(spec.md)에 반영**한 뒤 구현할 것.
+- **관련 파일/커밋**: `app.js`, `firebase-db.js`, `index.html`, `spec.md`
+
 ### [2026-10-29] 태스크3 - Gemini 모델명 지원 종료로 404 (gemini-2.0-flash / 2.5-flash)
 
 - **단계/위치**: 태스크3 통합 테스트, `config.js`/`gemini.js`의 모델명
